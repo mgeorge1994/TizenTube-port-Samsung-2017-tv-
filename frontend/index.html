@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>YouTube</title>
+  <script>
+    /* Scale the fixed 80 x 45 rem stage to whatever viewport the TV reports.
+       UE50MU6102 is 3840x2160: at DPR 2 this gives 1rem = 24px,
+       at DPR 1 it gives 1rem = 48px. Either way the layout is identical.
+       Re-run on resize/orientation changes so the rail never slides offscreen. */
+    (function () {
+      function fit() {
+        var el = document.documentElement;
+        var w = el.clientWidth || window.innerWidth || 1920;
+        var h = el.clientHeight || window.innerHeight || 1080;
+        el.style.fontSize = Math.min(w / 80, h / 45) + 'px';
+      }
+      fit();
+      window.addEventListener('resize', fit);
+      window.addEventListener('orientationchange', fit);
+    })();
+  </script>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="shell">
+    <!-- Two panes: the navigation bar, then the header + page content. -->
+    <div id="navbar">
+      <div class="rail" id="rail"></div>
+    </div>
+
+    <div id="main">
+      <div class="topbar">
+        <div class="searchpill" id="searchpill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="6.4"/><path d="M16 16.2 20.4 20.6" stroke-linecap="round"/>
+          </svg>
+          <span>Search</span>
+        </div>
+        <div class="spacer" id="topspace"></div>
+        <div class="brand" id="brand">
+          <img class="wordmark" src="img/yourtube-logo.svg" alt="YouTube">
+        </div>
+      </div>
+
+      <div id="view"></div>
+    </div>
+
+    <div id="watch">
+      <div class="preparing" id="prep">
+        <div class="ring"></div>
+      </div>
+      <video id="video" preload="auto"></video>
+
+      <div class="captions" id="captions"></div>
+
+      <div class="minibar" id="minibar">
+        <div class="micon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg></div>
+        <div class="mtitle" id="minititle"></div>
+        <div class="mhint">Back restore · 2× pause · hold down close</div>
+      </div>
+
+      <div class="pctl" id="pctl">
+        <div class="ptop">
+          <div class="pinfo">
+            <h2 id="wtitle"></h2>
+            <div class="meta" id="wmeta"></div>
+            <div class="desc" id="wdesc"></div>
+          </div>
+          <div class="next" id="next">
+            <div class="lbl">UP NEXT</div>
+            <div class="row">
+              <img id="nextimg" alt="">
+              <div class="t" id="nexttitle"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="barwrap" id="barwrap">
+          <div class="bar" id="bar">
+            <div class="buf" id="buf"></div>
+            <div class="pos" id="pos"></div>
+            <div class="segs" id="segs"></div>
+            <div class="knob" id="knob"></div>
+          </div>
+        </div>
+        <div class="times">
+          <span id="tcur">0:00</span>
+          <span class="sp"></span>
+          <span id="tdur">0:00</span>
+        </div>
+
+        <div class="pbtns">
+          <div class="pgrp" id="pgrp"></div>
+          <div class="pright" id="pright"></div>
+        </div>
+      </div>
+
+      <div class="pinfopanel" id="pinfopanel">
+        <div class="ptitle" id="pinfotitle">Description</div>
+        <div class="pbody" id="pinfolist"></div>
+      </div>
+
+      <div class="psettings" id="psettings">
+        <div class="pshead">
+          <div class="psback" id="psback">‹</div>
+          <div class="pstitle" id="pstitle">Settings</div>
+        </div>
+        <div class="pslist" id="pslist"></div>
+      </div>
+    </div>
+
+    <div id="context">
+      <div class="ctxdim"></div>
+      <div class="ctxpanel" id="contextpanel">
+        <div class="ctxvideo">
+          <img id="cthumb" alt="">
+          <div class="ctxvideo-text">
+            <div class="ctitle" id="ctitle"></div>
+            <div class="csub" id="csub"></div>
+          </div>
+        </div>
+        <div class="ctxhead" id="cchead">Video options</div>
+        <div class="ctxlist" id="contextlist"></div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/keys.js"></script>
+  <script src="js/context.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/preview.js"></script>
+  <script src="js/dash.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

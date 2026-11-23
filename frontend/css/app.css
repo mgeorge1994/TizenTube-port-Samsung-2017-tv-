@@ -1,0 +1,1137 @@
+/* yourTube — design system lifted from the real client.
+ *
+ * Verified against the stylesheet the TV's YouTube app actually loads
+ * (kabuki .../ss/.../m=main), 2026-11 build:
+ *   1rem            = viewport width / 80   (24px at 1080p)
+ *   body            background #000, browse surface #0f0f0f
+ *   primary text    #f1f1f1, secondary #909090 / #606060
+ *   tile radius     .75rem (18px), focused 1.1rem (26.4px)
+ *   focus ring      box-shadow 0 0 0 .375rem #f1f1f1  (9px)
+ *   focus motion    transform scale(1.1)
+ *   gutter          6rem (144px), item gap 1rem (24px)
+ *   UI font         Roboto; brand/wordmark YTSans (proprietary, substituted)
+ *
+ * Runtime is Chromium 56 (Tizen 3.0): no CSS grid, no aspect-ratio, no flex gap.
+ */
+
+@font-face { font-family: 'Roboto'; font-weight: 400; src: url('../fonts/roboto-400.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto'; font-weight: 500; src: url('../fonts/roboto-500.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto'; font-weight: 700; src: url('../fonts/roboto-700.woff2') format('woff2'); }
+
+:root {
+  --bg: #000;
+  --surface: #0f0f0f;
+  --card: #212121;
+  --line: #373737;
+  --text: #f1f1f1;
+  --dim: #909090;
+  --dim2: #606060;
+  --select: #909090;                /* every selected-state circle is gray */
+  --accent: #00e676;
+  --accent-soft: #00e676;
+  --frame: 1rem;                    /* visible padding around the whole app */
+  --gutter: 5.5rem;
+  --gap: 1rem;
+  --ring: .4rem;
+  --rail: 5rem;                     /* black nav column, flush with the screen edge */
+  --content-left: 6rem;             /* rail + 1rem content gutter */
+}
+
+* { box-sizing: border-box; }
+
+html {
+  /* JS sets the exact stage scale; this is the fallback.
+     80rem x 45rem fits any 16:9 viewport from 1920x1080 to 3840x2160. */
+  font-size: 1.25vw;
+}
+
+html, body {
+  margin: 0; padding: 0;
+  height: 100%;
+  background: #000;
+  color: #f1f1f1;
+  font-family: 'Roboto', 'Noto Sans', Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: none;
+}
+
+img { display: block; border: 0; }
+button { font-family: inherit; border: 0; background: none; color: inherit; }
+
+/* Fixed 80 x 45 rem stage, centered and scaled by the inline head script.
+   At 1rem = 24px this is 1920x1080; at 1rem = 48px it is 3840x2160. */
+#shell {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 80rem; height: 45rem;
+  margin-top: -22.5rem; margin-left: -40rem;
+  background: #000;
+  display: flex;
+}
+
+/* Pane 1: the navigation bar. Pane 2: the header plus the page that is
+   currently on screen. Both are laid out by flexbox, not absolute offsets. */
+#navbar {
+  flex: 0 0 var(--rail);
+  width: var(--rail);
+  /* Same gap on both sides of the rail: it is flush like the screen edge. */
+  margin-right: 0;
+  background: linear-gradient(to right, #000 0%, rgba(0,0,0,0) 100%);
+  position: relative;
+  z-index: 70;
+}
+#main {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ---------- chrome: logo, search pill, account — as in the stock client --- */
+/* The header belongs to the right-hand pane, above the page content. */
+.topbar {
+  position: relative;
+  flex: 0 0 7rem;
+  width: 100%; height: 7rem;
+  box-sizing: border-box;
+  display: flex; align-items: center;
+  padding: .5rem 1rem 0 1rem;
+  margin-bottom: .45rem;
+  /* Transparent through the lower half, 20% transparent at the midpoint, then
+     a gradual fade to solid black at the top edge of the screen. */
+  background: linear-gradient(to top,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0) 45%,
+    rgba(0,0,0,.8) 50%,
+    rgba(0,0,0,1) 100%);
+  z-index: 60;
+}
+/* Short linear fade under the header — just the 1rem gap, not a large band. */
+.topbar:after {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 100%;
+  height: 1rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,.92) 0%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+
+.brand { display: flex; align-items: center; margin-left: 2rem; padding-right: .5rem; }
+.brand .wordmark { width: 9.45rem; height: auto; display: block; }
+
+.topbar .spacer { flex: 1; }
+
+/* the search affordance in the header */
+.searchpill {
+  display: flex; align-items: center;
+  width: 46.9rem; box-sizing: border-box;
+  height: 3.4rem;
+  padding: 0 1.7rem 0 1.4rem;
+  border-radius: 1.7rem;
+  background: #212121;
+  color: #aaaaaa;
+  font-size: 1.25rem; font-weight: 500;
+  transition: box-shadow .14s, color .14s, background .14s;
+}
+.searchpill svg { width: 1.5rem; height: 1.5rem; margin-right: .8rem; }
+.searchpill.focused {
+  color: #0f0f0f; background: #f1f1f1;
+  box-shadow: 0 0 0 .1875rem #f1f1f1;
+}
+
+#status {
+  font-size: 1rem; color: #606060;
+  margin-right: 1.5rem; letter-spacing: .02em;
+}
+#status.warn { color: #ff9f1a; }
+
+/* ---------- left navigation rail ---------- */
+.rail {
+  position: relative;
+  width: 100%; height: 100%;
+  padding-top: .7rem;
+  background: #000;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+.railitem {
+  display: block;
+  width: var(--rail);
+  margin-bottom: .5rem;
+  text-align: center;
+  color: #909090;
+  transition: color .12s;
+}
+.railitem .box {
+  width: 3.6rem; height: 2.4rem;
+  margin: 0 auto;
+  border-radius: .75rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s;
+}
+.railitem svg { width: 1.45rem; height: 1.45rem; }
+.railitem .lbl {
+  font-size: .74rem; font-weight: 500; letter-spacing: .005em;
+  margin-top: .24rem;
+}
+
+.railitem.active { color: #c6c6c6; }
+.railitem.focused .box { background: #f1f1f1; color: #0f0f0f; }
+.railitem.focused .lbl { color: #f1f1f1; }
+
+/* the account circle sits at the top of the rail, level with the search pill */
+.railitem.railaccount {
+  position: relative; left: .35rem;
+  margin-top: 1.3rem; margin-bottom: 1.2rem;
+}
+.railitem.railaccount .box {
+  width: 2.4rem; height: 2.4rem;
+  border-radius: 50%; background: #606060; color: #f1f1f1;
+  overflow: hidden;
+}
+.railitem.railaccount.signedin .box { background: var(--select); color: #fff; }
+.railitem.railaccount.signedin.active .box { background: #bdbdbd; color: #0f0f0f; }
+.railitem.railaccount.signedout.active .box { background: #606060; color: #f1f1f1; }
+.railitem.railaccount.focused .box {
+  background: #f1f1f1; color: #0f0f0f;
+  box-shadow: 0 0 0 .25rem var(--select);
+}
+.railitem.railaccount .box svg { width: 1.4rem; height: 1.4rem; }
+.railitem.railaccount .box img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Search through Settings stay together, centred in the space under the circle */
+.railmain {
+  flex: 1 1 auto; min-height: 0;
+  width: var(--rail);
+  display: flex; flex-direction: column; justify-content: center;
+}
+
+/* ---------- scroll body ---------- */
+/* One content rectangle shared by every page: it fills the rest of the
+   right-hand pane below the header, so no page can sit under the navbar. */
+#view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0; width: auto;
+  margin-left: .2rem;
+  overflow-y: auto; overflow-x: hidden;
+  padding: .6rem 1rem 6rem 1rem;
+  background: #000;
+  scroll-behavior: smooth;
+}
+#view::-webkit-scrollbar { display: none; }
+
+/* ---------- shelves: 2.5 tiles visible, the rest scroll left/right --------- */
+.shelf { margin-bottom: 1.6rem; }
+
+/* Every shelf is one horizontal, remote-scrollable row. */
+.hrow { margin-bottom: .4rem; }
+.hrow .hscroll {
+  position: relative;
+  overflow-x: auto; overflow-y: hidden;
+  margin: 0;
+  padding: .5rem .6rem 2.4rem;
+}
+.hrow .hscroll::-webkit-scrollbar { display: none; }
+.hrow .htrack { display: flex; align-items: flex-start; }
+.hrow .tile { width: 40%; margin-right: 1rem; }
+/* Keep a full tile of trailing space so Right can scroll the last card fully
+   into view instead of leaving it clipped at the container edge. */
+.hrow .tile:last-child { margin-right: 1rem; }
+
+.shelf .head {
+  display: flex; align-items: baseline;
+  padding: 0;
+  margin-bottom: .6rem;
+}
+.shelf .title {
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -.01em;
+  color: #f1f1f1;
+}
+.shelf .count {
+  font-size: 1rem; color: #606060; margin-left: .9rem;
+}
+
+/* History's real pause switch, matching YouTube TV's settings card. */
+.hpcard {
+  display: flex; align-items: center;
+  width: 100%; box-sizing: border-box;
+  padding: .62rem 1.2rem; margin: 0 0 1rem 0;
+  border-radius: .8rem;
+  background: #212121;
+  color: #f1f1f1;
+}
+.hpcard .hpicon { width: 2.2rem; height: 2.2rem; margin-right: 1.2rem; color: #f1f1f1; }
+.hpcard .hpicon svg { width: 100%; height: 100%; display: block; }
+.hpcard .hptxt { flex: 1; min-width: 0; }
+.hpcard .hptitle { font-size: 1.28rem; font-weight: 500; margin-bottom: .12rem; }
+.hpcard .hpsub { font-size: .9rem; color: #aaa; line-height: 1.25rem; }
+.hpcard .hpval { font-size: 1.02rem; margin-right: 1rem; color: #f1f1f1; }
+.hpcard .hpswitch {
+  width: 4.4rem; height: 2.2rem; border-radius: 1.1rem;
+  background: #606060; padding: .25rem; box-sizing: border-box;
+  transition: background .14s;
+}
+.hpcard .hpswitch i {
+  display: block; width: 1.7rem; height: 1.7rem;
+  border-radius: 50%; background: #f1f1f1;
+  transition: transform .14s;
+}
+.hpcard .hpswitch.on { background: #00e676; }
+.hpcard .hpswitch.on i { transform: translateX(2.2rem); }
+.hpcard.focused { background: #f1f1f1; color: #0f0f0f; box-shadow: none; }
+.hpcard.focused .hpicon { color: #0f0f0f; }
+.hpcard.focused .hpsub { color: #303030; }
+.hpcard.focused .hpval { color: #0f0f0f; }
+
+/* YouTube Music home / search entry points. */
+.musicsearch {
+  display: flex; align-items: center;
+  width: 100%; box-sizing: border-box;
+  height: 4.6rem; padding: 0 1.4rem;
+  margin: 0 0 1.8rem 0;
+  border-radius: 2.3rem;
+  background: #212121;
+  color: #f1f1f1;
+  font-size: 1.2rem;
+}
+.musicsearch svg { width: 2.2rem; height: 2.2rem; margin-right: 1rem; color: #f1f1f1; }
+.musicsearch.focused { background: #f1f1f1; color: #0f0f0f; }
+.musicsearch.focused svg { color: #0f0f0f; }
+.musichead { margin: .4rem 0 1.8rem 0; }
+.musichead h1 { margin: 0 0 .5rem 0; font-size: 2.4rem; font-weight: 500; color: #f1f1f1; }
+.musichead p { margin: 0; font-size: 1.15rem; line-height: 1.6rem; color: #aaa; }
+
+/* channel page header, opened from the player */
+.channelhead {
+  display: flex; align-items: center;
+  margin-bottom: 1.6rem; padding-bottom: 1.2rem;
+  border-bottom: 1px solid #2a2a2a;
+}
+.channelhead img {
+  width: 7rem; height: 7rem; border-radius: 50%;
+  object-fit: cover; margin-right: 1.6rem;
+}
+.channelhead .cmeta h1 {
+  margin: 0 0 .4rem; font-size: 2.1rem; font-weight: 500; color: #f1f1f1;
+}
+.channelhead .cmeta .sub { font-size: 1.05rem; color: #909090; }
+.subbtn {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: .75rem 1.7rem;
+  border: 0;
+  border-radius: 2rem;
+  background: #f1f1f1; color: #0f0f0f;
+  font-size: 1.05rem; font-weight: 600;
+  cursor: pointer;
+}
+.subbtn.subscribed { background: #303030; color: #f1f1f1; }
+.subbtn.focused { outline: .2rem solid #fff; outline-offset: .2rem; }
+
+/* History: a fixed three-card grid. No horizontal scroller, arrows walk rows. */
+.shelf.grid .grow { display: flex; align-items: flex-start; }
+.shelf.grid .tile { width: 31%; margin-right: 1rem; }
+
+/* one visual line of the grid; each line is also one navigation row */
+.grow {
+  display: flex; align-items: flex-start;
+  padding: 0;
+  margin-bottom: 2.4rem;
+}
+
+/* ---------- tile ---------- */
+/* 2.5 cards fit the content area; Right scrolls the rest fully into view. */
+.tile {
+  position: relative;
+  width: 40%;
+  flex: 0 0 auto;
+  margin-right: 1rem;
+  transform-origin: center center;
+}
+.tile:last-child { margin-right: 1rem; }
+
+.tile .thumb {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%;
+  border-radius: .75rem;
+  overflow: hidden;
+  background: #212121;
+  transition: border-radius .16s;
+}
+.tile .thumb img {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+.tile .dur {
+  position: absolute; right: .7rem; bottom: .7rem; z-index: 3;
+  background: rgba(0,0,0,.82);
+  border-radius: .3rem;
+  padding: .14rem .55rem;
+  font-size: 1.05rem; font-weight: 500; letter-spacing: .01em;
+}
+
+.tile .progress {
+  position: absolute; left: 0; right: 0; bottom: 0; height: .4rem; z-index: 3;
+  background: rgba(255,255,255,.3);
+}
+.tile .progress i { display: block; height: .4rem; background: #00e676; }
+
+.tile .txt { padding-top: 1.1rem; }
+.tile .name {
+  font-size: 1.45rem; font-weight: 500; line-height: 1.85rem;
+  height: 3.7rem; overflow: hidden;
+  color: #f1f1f1; text-shadow: 0 .1rem .3rem #000;
+}
+.tile .sub {
+  font-size: 1rem; color: #909090; line-height: 1.4rem; margin-top: .2rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* the three-up grid never grows on focus: the ring is the whole affordance.
+   Chromium 56 (Tizen 3) draws `outline` as a square, so use only box-shadow —
+   which follows the thumbnail's rounded corners. */
+.tile.focused { z-index: 5; }
+.tile.focused .thumb {
+  border-radius: 1.1rem;
+  box-shadow: 0 0 0 .45rem #f1f1f1, inset 0 0 0 .22rem #f1f1f1;
+}
+/* Chromium 56 paints inset shadows behind child elements, so the
+   hover preview video would cover the ring. This overlay is the
+   last thing in the thumbnail's stacking context and is never
+   hidden by the video. */
+.tile.focused .thumb:after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 1.1rem;
+  box-shadow: inset 0 0 0 .22rem #f1f1f1, 0 0 0 .45rem #f1f1f1;
+  z-index: 4;
+  pointer-events: none;
+}
+.tile.focused .name { color: #fff; text-shadow: 0 .1rem .3rem #000; }
+.tile.watched .thumb img { opacity: .55; }
+
+/* video-card placeholders while a shelf is loading */
+.shelf.loading .title { line-height: 1; }
+.sktitle {
+  height: 1.6rem;
+  border-radius: .35rem;
+  background: #212121;
+  position: relative;
+  overflow: hidden;
+}
+.sktitle:after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -100%; width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent);
+  animation: sk-shine 1.2s linear infinite;
+}
+.skcard .skthumb { background: #212121; }
+.skcard .skthumb:after,
+.skcard .skline:after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -100%; width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent);
+  animation: sk-shine 1.2s linear infinite;
+}
+.skcard .skline {
+  position: relative; height: 1.3rem; margin-top: .8rem;
+  border-radius: .3rem; background: #212121; overflow: hidden;
+}
+.skcard .skline.short { width: 58%; }
+@keyframes sk-shine { from { left: -100%; } to { left: 100%; } }
+
+/* Focus preview: one muted video element is moved into the focused thumbnail. */
+.tilepreview {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  z-index: 2;
+  pointer-events: none;
+  transition: opacity .24s ease;
+}
+.tilepreview.on { opacity: 1; }
+
+/* ---------- search: full-width field, keyboard under it ------------------- */
+#view.search { padding-top: .6rem; }
+.searchwrap { padding: 0; min-height: 70rem; }
+
+.searchbox {
+  display: flex; align-items: center;
+  height: 4.6rem;
+  border-radius: 2.3rem;
+  background: #212121;
+  padding: 0 1.5rem 0 1.7rem;
+  margin: 0 0 2.2rem 0;
+  transition: box-shadow .14s, background .14s;
+}
+/* when the live field is hosted by the topbar it uses the pill's exact
+   geometry, so focused and unfocused states are the same width */
+.topbar .searchbox {
+  margin: 0;
+  height: 3.4rem;
+  flex: 0 0 46.9rem;
+  width: 46.9rem;
+  border-radius: 1.7rem;
+  font-size: 1.25rem;
+}
+.topbar .searchbox > svg { width: 1.5rem; height: 1.5rem; margin-right: .8rem; }
+.topbar .searchbox input { font-size: 1.25rem; }
+.topbar .searchbox .mic svg { width: 1.4rem; height: 1.4rem; }
+/* Search owns the whole header: field starts at the same left edge as every
+   other page's content, and is wider than the small browse-page pill. */
+.topbar.search-mode #topspace { display: none; }
+.topbar.search-mode .searchbox { flex-basis: 56rem; width: 56rem; }
+.searchbox.focused {
+  background: #f1f1f1;
+  color: #0f0f0f;
+  box-shadow: 0 0 0 .25rem #f1f1f1;
+}
+.searchbox.focused input { color: #0f0f0f; }
+.searchbox.focused input::-webkit-input-placeholder { color: #606060; }
+.searchbox.focused > svg,
+.searchbox.focused .mic { color: #0f0f0f; }
+.searchbox > svg { width: 1.9rem; height: 1.9rem; margin-right: 1.1rem; color: #f1f1f1; flex: 0 0 auto; }
+.searchbox input {
+  flex: 1;
+  background: none; border: 0; outline: none;
+  color: #f1f1f1;
+  font-size: 1.8rem; font-family: inherit;
+  min-width: 0;
+}
+.searchbox input::-webkit-input-placeholder { color: #717171; }
+.searchbox .mic { color: #909090; margin-left: 1rem; flex: 0 0 auto; }
+.searchbox .mic svg { width: 1.75rem; height: 1.75rem; }
+
+.suggestlist {
+  position: absolute; top: 0; left: 0;
+  width: 20rem; max-height: 15rem;
+  overflow: hidden;
+}
+.results {
+  position: absolute; top: 15rem; left: 0; right: 0;
+}
+.suggestlist .sectlbl {
+  font-size: 1rem; color: #909090;
+  letter-spacing: .06em; text-transform: uppercase;
+  margin-bottom: .3rem;
+}
+.suggestitem {
+  display: flex; align-items: center;
+  height: 2.5rem;
+  padding: 0 1.1rem;
+  border-radius: .55rem;
+  color: #f1f1f1;
+  font-size: 1.25rem;
+  transition: background .12s, color .12s;
+}
+.suggestitem svg {
+  width: 1.4rem; height: 1.4rem;
+  margin-right: .9rem;
+  color: #909090;
+  flex: 0 0 auto;
+}
+.suggestitem.focused {
+  background: #f1f1f1;
+  color: #0f0f0f;
+  box-shadow: 0 0 0 .14rem #f1f1f1;
+}
+.suggestitem.focused svg { color: #0f0f0f; }
+
+/* exact stock layout: seven keys per row, a function column, then SPACE /
+   CLEAR / SEARCH. 1rem = 24px at 1080p, so the real 50px keys are 2.083rem. */
+.kbd {
+  position: absolute; top: 2rem;
+  left: calc(50% - 11rem); width: 22rem;
+}
+.kbd .krow { display: flex; margin-bottom: .448rem; }
+.kbd .krow.bottom { margin-left: .58rem; }
+.key {
+  width: 2.083rem; height: 2.083rem;
+  margin-right: .458rem;
+  border-radius: .35rem;
+  background: transparent;
+  color: #aaa;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 500;
+  transition: background .12s, color .12s;
+}
+.key.fn svg { width: 1.45rem; height: 1.45rem; }
+.key.fn.mode { font-size: 1.02rem; letter-spacing: -.02em; }
+.key.wide {
+  width: 5.04rem; margin-right: .48rem;
+  background: #373737;
+  font-size: 1rem; font-weight: 500;
+}
+.key.wide.search { background: #373737; }
+.key.focused,
+.key.wide.focused,
+.key.wide.search.focused {
+  background: #f1f1f1;
+  color: #0f0f0f;
+}
+
+/* ---------- settings ---------- */
+.panel { padding: 1rem 0 0; max-width: none; }
+.panel h1 { font-size: 2.5rem; margin: 0 0 1.5rem 0; font-weight: 500; letter-spacing: -.02em; }
+.panel .backhint { font-size: .9rem; color: #909090; margin: -.9rem 0 1.2rem; }
+.highcontrast .setrow .lbl span,
+.highcontrast .tile .sub,
+.highcontrast #watch .pinfo .meta { color: #fff; }
+.highcontrast .setrow { background: #242424; }
+.setrow {
+  display: flex; align-items: center;
+  padding: .9rem 1.1rem;
+  border-radius: .75rem;
+  background: #181818;
+  margin-bottom: .5rem;
+  transition: box-shadow .12s, background .12s;
+}
+.setrow.focused { background: #212121; box-shadow: 0 0 0 .1875rem #f1f1f1; }
+.setrow .lbl { flex: 1; }
+.setrow .lbl b { display: block; font-size: 1.125rem; font-weight: 500; }
+.setrow .lbl span { font-size: .875rem; color: #909090; }
+.setrow .val { font-size: 1.125rem; color: #f1f1f1; font-weight: 500; }
+.setrow.subrow .val { color: #f1f1f1; }
+
+/* ---------- account: the stock sign-in / QR screen ------------------------ */
+#view.account { top: 0; padding-top: 3.5rem; }
+
+.acctwrap {
+  display: flex;
+  align-items: flex-start;
+  padding: 0;
+  min-height: 40rem;
+}
+
+.acctmenu { width: 30rem; flex: 0 0 30rem; margin-top: 5.5rem; }
+.accthead { font-size: 2.5rem; font-weight: 500; margin-bottom: 2rem; color: #f1f1f1; }
+.acctcircles { display: flex; flex-wrap: wrap; margin-bottom: 2.5rem; }
+.acctcircle { width: 11rem; margin: 0 .8rem 1.5rem 0; text-align: center; }
+.acctcircle .dot {
+  width: 6.5rem; height: 6.5rem; margin: 0 auto .8rem;
+  border-radius: 50%; background: var(--select);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; color: #fff; font-size: 2.75rem; font-weight: 500;
+}
+.acctcircle .dot img { width: 100%; height: 100%; object-fit: cover; }
+.acctcircle.active .dot { background: #bdbdbd; box-shadow: 0 0 0 .3125rem var(--select); }
+.acctcircle.focused .dot { box-shadow: 0 0 0 .3125rem var(--select); }
+.acctcircle .circle-name {
+  font-size: .95rem; color: #f1f1f1; line-height: 1.2rem;
+  white-space: normal; overflow: visible;
+}
+.acctitem .glyph {
+  width: 2.75rem; height: 2.75rem; margin-right: 1.1rem;
+  border-radius: 50%; background: var(--select); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.75rem; line-height: 1;
+}
+
+.acctitem {
+  width: 24rem;
+  height: 3.75rem;
+  padding-left: 4rem;
+  display: flex; align-items: center;
+  border-radius: .75rem;
+  color: #f1f1f1;
+  font-size: 1.25rem; font-weight: 500;
+  white-space: nowrap;
+  margin-bottom: .75rem;
+  transition: background .12s, color .12s;
+}
+.acctitem.gap { margin-top: 4.3rem; }
+.acctitem.selected { background: #f1f1f1; color: #0f0f0f; }
+.acctitem.focused {
+  box-shadow: 0 0 0 .1875rem #f1f1f1;
+  background: #f1f1f1; color: #0f0f0f;
+}
+
+.acctterms {
+  margin-top: 2.5rem;
+  padding-left: 4rem;
+  font-size: 1rem;
+  color: #909090;
+}
+.acctterms.focused { color: #f1f1f1; }
+
+.acctqr {
+  width: 27rem;
+  flex: 0 0 27rem;
+  margin-left: 4rem;
+  padding-top: 2.9rem;
+}
+.acctqr .qrimg {
+  width: 27rem;
+  height: 18rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.acctqr .qrimg img {
+  width: 17rem; height: 17rem;
+  image-rendering: -webkit-optimize-contrast;
+}
+.acctqr .qrcopy { padding-left: 2rem; margin-top: 1.2rem; }
+.acctqr .qrlbl {
+  font-size: 1.25rem; font-weight: 400;
+  color: #f1f1f1; line-height: 1.75rem;
+}
+.acctqr .qrurl, .acctqr .qrcode {
+  font-size: 2rem; font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 2.35rem;
+  color: #f1f1f1;
+  margin-bottom: 1.5rem;
+}
+.acctqr .code-lbl { margin-bottom: .4rem; }
+.acctqr .qrcode { margin-bottom: 0; }
+.acctqr.focused { box-shadow: 0 0 0 .1875rem #f1f1f1; }
+
+/* ---------- watch: the stock TV player overlay ----------------------------- */
+#watch {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: #000; display: none;
+  z-index: 100;
+}
+#watch.on { display: block; }
+#watch video {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: #000;
+  object-fit: cover;
+}
+
+#watch .pctl {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 13rem 5.5rem 2.4rem 5.5rem;
+  background: linear-gradient(to top,
+              rgba(0,0,0,.97) 0%, rgba(0,0,0,.90) 24%,
+              rgba(0,0,0,.58) 58%, rgba(0,0,0,0) 100%);
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+#watch.ui .pctl { opacity: 1; }
+
+#watch .ptop {
+  display: flex; align-items: flex-end;
+  margin-bottom: 1.1rem;
+}
+#watch .pinfo {
+  flex: 1; min-width: 0;
+  margin-right: 2.5rem;
+  background: none;                /* title sits directly on the gradient, left aligned */
+  border: 0;
+}
+#watch .pinfo h2 {
+  margin: 0 0 .4rem 0;
+  font-size: 2.15rem; font-weight: 500;
+  line-height: 1.16; letter-spacing: -.01em;
+  max-width: 70rem;
+  color: #fff;
+  text-shadow: 0 .1rem .6rem #000;
+}
+#watch .pinfo .meta { font-size: 1.15rem; color: #d2d2d2; }
+#watch .pinfo .desc {
+  margin-top: .6rem;
+  max-width: 60rem;
+  font-size: 1.02rem; line-height: 1.42rem;
+  color: #bcbcbc;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* up next card, right aligned above the bar */
+#watch .next { width: 26rem; flex: 0 0 26rem; display: none; }
+#watch .next.on { display: block; }
+#watch .next .lbl {
+  font-size: .76rem; letter-spacing: .16em; color: #f1f1f1;
+  font-weight: 700; margin-bottom: .5rem; opacity: .7;
+}
+#watch .next .row { display: flex; align-items: center; }
+#watch .next img {
+  width: 8.4rem; height: 4.72rem;
+  border-radius: .4rem; object-fit: cover;
+  margin-right: .8rem; background: #212121;
+}
+#watch .next .t {
+  font-size: .98rem; line-height: 1.36rem;
+  max-height: 2.72rem; overflow: hidden; color: #f1f1f1;
+}
+
+/* seek bar: thin green played range, knob only while the bar has focus */
+#watch .barwrap { padding: 1rem 0; margin: -1rem 0; }
+#watch .bar {
+  position: relative;
+  height: .3rem;
+  border-radius: .15rem;
+  background: rgba(255,255,255,.28);
+  transition: height .12s;
+}
+#watch.zseek .bar { height: .42rem; }
+#watch .bar .buf {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 0;
+  background: rgba(255,255,255,.42);
+  border-radius: .15rem;
+}
+#watch .bar .pos {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 0;
+  background: #00e676;              /* same green as the wordmark play icon */
+  border-radius: .15rem;
+}
+/* green SponsorBlock ranges drawn on top of the seek bar */
+#watch .bar .segs { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none; }
+#watch .bar .seg {
+  position: absolute; top: -.12rem; height: .54rem;
+  border-radius: .16rem; background: #00e676; opacity: .95;
+}
+#watch .bar .seg.cat-sponsor { background: #00e676; }
+#watch .bar .seg.cat-intro { background: #65c8ff; }
+#watch .bar .seg.cat-outro { background: #00e676; }
+#watch .bar .seg.cat-selfpromo { background: #00b8ff; }
+#watch .bar .seg.cat-interaction { background: #8ad4ff; }
+#watch .bar .seg.cat-preview { background: #2f8fff; }
+#watch .bar .seg.cat-music_offtopic { background: #0077c8; }
+
+#watch .bar .knob {
+  position: absolute; top: -.375rem;
+  width: 1.05rem; height: 1.05rem; border-radius: 50%;
+  background: #fff; margin-left: -.525rem; left: 0;
+  transform: scale(0);
+  transition: transform .12s;
+}
+#watch.zseek .bar .knob { transform: scale(1); }
+
+#watch .times {
+  display: flex;
+  font-size: 1.02rem; color: #d2d2d2;
+  margin-top: .5rem;
+  font-variant-numeric: tabular-nums;
+}
+#watch .times .sp { flex: 1; }
+
+/* YouTube TV control row: transport on the left, account actions on the
+   right. Both groups stay in normal flow so they can never overlap. */
+#watch .pbtns {
+  position: relative;
+  display: flex; justify-content: space-between; align-items: center;
+  height: 5.2rem;
+  margin-top: 1.1rem;
+}
+#watch .pgrp, #watch .pright { display: flex; align-items: center; }
+
+#watch .pbtn {
+  position: relative;
+  width: 5.2rem; height: 5.2rem;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  background: transparent;
+  margin: 0 .25rem;
+  transition: background .12s, color .12s, transform .12s;
+}
+#watch .pbtn .ico { position: relative; width: 2.6rem; height: 2.6rem; }
+#watch .pbtn .ico svg { width: 100%; height: 100%; display: block; }
+#watch .pbtn .ico .n {
+  position: absolute; left: 0; right: 0; top: 1.02rem;
+  text-align: center;
+  font-size: .7rem; font-weight: 700; letter-spacing: -.02em;
+}
+/* like count under the thumb, and the green liked state */
+#watch .pbtn .num {
+  position: absolute; right: .05rem; bottom: .35rem;
+  min-width: 1.5rem; padding: 0 .22rem;
+  border-radius: .8rem; background: rgba(0,0,0,.62);
+  color: #fff; text-align: center;
+  font-size: .6rem; line-height: .95rem; font-variant-numeric: tabular-nums;
+}
+#watch .pbtn.liked .ico,
+#watch .pbtn.disliked .ico,
+#watch .pbtn.saved .ico { color: #00e676; }
+#watch .pbtn.focused.liked .ico,
+#watch .pbtn.focused.disliked .ico,
+#watch .pbtn.focused.saved .ico { color: #0f0f0f; }
+#watch .pbtn.focused {
+  background: #fff; color: #0f0f0f;
+  transform: scale(1.04);
+}
+
+/* YouTube TV keeps the transport controls large and makes the secondary
+   actions compact, so Like / Dislike / Save / Comments / Description /
+   Channel / Settings / Minimize never compete with Play / Pause. */
+/* 20% larger than the half-size secondary buttons, while the transport
+   controls stay full size. */
+#watch .pright .pbtn {
+  width: 3.12rem; height: 3.12rem;
+  margin: 0 .36rem;
+}
+#watch .pright .pbtn .ico { width: 1.74rem; height: 1.74rem; }
+#watch .pright .pbtn .num {
+  right: -.06rem; bottom: -.12rem;
+  min-width: 1.2rem; padding: 0 .14rem;
+  font-size: .55rem; line-height: .94rem;
+}
+
+/* description / comments: a full-height, half-screen right-side sheet.
+   Back/Enter still closes it; there is deliberately no on-screen Back button. */
+#watch .pinfopanel {
+  display: none;
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 50%; box-sizing: border-box;
+  padding: 3rem 3rem 2rem;
+  background: rgba(15,15,15,.98);
+  box-shadow: -1rem 0 4rem rgba(0,0,0,.65);
+  z-index: 6;
+  flex-direction: column;
+}
+#watch .pinfopanel.on { display: flex; }
+#watch .pinfopanel .ptitle {
+  flex: 0 0 auto;
+  font-size: 1.7rem; font-weight: 500; color: #fff; margin-bottom: 1.3rem;
+}
+#watch .pinfopanel .pbody {
+  flex: 1 1 auto; min-height: 0; max-height: none;
+  overflow-y: auto;
+  padding-right: .6rem;
+  color: #d2d2d2; font-size: 1.05rem; line-height: 1.5rem;
+  white-space: pre-line;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#watch .pinfopanel .pbody::-webkit-scrollbar { display: none; }
+#watch .pinfopanel .pbody .cmt { border-bottom: 1px solid #2a2a2a; padding: .6rem 0 .9rem; }
+#watch .pinfopanel .pbody .cmt h4 {
+  margin: 0 0 .2rem; font-size: 1.02rem; color: #fff; font-weight: 500;
+}
+#watch .pinfopanel .pbody .cmeta { font-size: .82rem; color: #909090; margin-bottom: .3rem; }
+#watch .pinfopanel .pbody .cmt p { margin: 0; color: #d2d2d2; white-space: pre-line; }
+
+/* YouTube-style settings drawer that slides in from the right of the player */
+#watch .psettings {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 34rem; box-sizing: border-box;
+  padding: 2.7rem 2rem 2rem;
+  background: rgba(15,15,15,.98);
+  box-shadow: -1rem 0 4rem rgba(0,0,0,.65);
+  transform: translateX(105%);
+  transition: transform .18s ease-out;
+  display: flex; flex-direction: column;
+  z-index: 8;
+}
+#watch .psettings.on { transform: translateX(0); }
+#watch .pshead {
+  display: flex; align-items: center;
+  height: 3.2rem; margin-bottom: .8rem;
+  flex: 0 0 auto;
+}
+#watch .psback {
+  width: 2.8rem; height: 2.8rem; margin-right: 1rem;
+  background: none; color: #f1f1f1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.6rem; line-height: 1;
+}
+#watch .psback.focused { color: #fff; transform: scale(1.12); }
+#watch .pstitle { font-size: 1.7rem; font-weight: 500; color: #f1f1f1; }
+/* fills every bit of height left under the header, with no hard cap */
+#watch .pslist {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; padding-right: .3rem;
+}
+#watch .psrow {
+  height: 3.4rem; padding: 0 1.2rem; margin-bottom: .2rem;
+  border-radius: .65rem;
+  display: flex; align-items: center; justify-content: space-between;
+  color: #f1f1f1; font-size: 1.08rem; font-weight: 500;
+}
+#watch .psrow .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#watch .psrow .val { color: #f1f1f1; margin-left: 1.5rem; }
+#watch .psrow.picked .lbl:before { content: '✓'; margin-right: .8rem; }
+#watch .psrow.focused {
+  background: #f1f1f1; color: #0f0f0f;
+  box-shadow: none;
+}
+#watch .psrow.focused .val { color: #0f0f0f; }
+
+/* Ambient mode: the artwork is blurred behind a slightly inset video. */
+#watch.ambient {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+#watch.ambient:before {
+  content: '';
+  position: absolute; top: -8%; right: -8%; bottom: -8%; left: -8%;
+  background-image: inherit;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  filter: blur(7rem) brightness(.55) saturate(1.3);
+  opacity: .85;
+  z-index: 0;
+}
+/* Ambient glow stays behind the video; the video itself always fills the
+   frame, even in ambient mode, so there is never a black inset border. */
+#watch.ambient video {
+  top: 0; left: 0; width: 100%; height: 100%;
+  box-shadow: none;
+  z-index: 1;
+}
+#watch.ambient .pctl { z-index: 2; }
+
+/* Ionic-style mini player: playback continues while the browse UI is usable. */
+#watch.mini {
+  background: transparent;
+  pointer-events: none;
+  z-index: 95;
+}
+#watch.mini video {
+  top: auto; left: auto; right: 2rem; bottom: 2rem;
+  width: 30rem; height: 16.9rem;
+  border-radius: .75rem;
+  box-shadow: 0 .8rem 3rem rgba(0,0,0,.85);
+  pointer-events: auto;
+  z-index: 2;
+}
+#watch.mini .pctl,
+#watch.mini .preparing,
+#watch.mini .pinfopanel,
+#watch.mini .psettings { display: none !important; }
+#watch.mini:before { display: none; }
+
+.minibar {
+  display: none;
+  position: absolute; right: 2rem; bottom: 21.7rem;
+  width: 30rem; box-sizing: border-box;
+  padding: .7rem 1rem;
+  border-radius: .6rem .6rem 0 0;
+  background: rgba(20,20,20,.96);
+  color: #f1f1f1;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 3;
+}
+.minibar.on { display: flex; }
+.minibar .micon { width: 1.8rem; height: 1.8rem; margin-right: .8rem; color: #00e676; }
+.minibar .micon svg { width: 100%; height: 100%; display: block; }
+.minibar .mtitle {
+  flex: 1; min-width: 0;
+  font-size: .9rem; line-height: 1.2rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.minibar .mhint {
+  font-size: .64rem; color: #909090; margin-left: .6rem;
+  white-space: nowrap;
+}
+
+/* AI / auto-generated captions sit above the control gradient. */
+#watch .captions {
+  display: none;
+  position: absolute; left: 10%; right: 10%; bottom: 28rem;
+  text-align: center;
+  font-size: 1.55rem; line-height: 2.1rem;
+  color: #fff;
+  text-shadow: 0 .15rem .5rem #000, 0 0 1rem #000;
+  pointer-events: none;
+  z-index: 5;
+}
+#watch .captions.on { display: block; }
+#watch .captions.box span {
+  display: inline-block;
+  padding: .35rem .9rem;
+  border-radius: .4rem;
+  background: rgba(0,0,0,.78);
+}
+
+/* ---------- preparing: icon-only spinner ---------- */
+.preparing {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; background: #000; z-index: 5;
+}
+.preparing .ring {
+  width: 3rem; height: 3rem; border-radius: 50%;
+  border: .25rem solid rgba(255,255,255,.15);
+  border-top-color: #00e676;
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.preparing .msg, .preparing .pct { display: none; }
+
+/* ---------- long-press video menu (YouTube TV style) ---------- */
+#context {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; z-index: 150;
+}
+#context.on { display: block; }
+#context .ctxdim {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.55);
+}
+#context .ctxpanel {
+  position: absolute; left: var(--content-left); top: 7.6rem;
+  width: 34rem; max-height: calc(100% - 10rem);
+  background: #212121; border-radius: .9rem;
+  box-shadow: 0 1.5rem 4rem rgba(0,0,0,.55);
+  padding: 1.2rem 1.1rem 1.1rem; box-sizing: border-box;
+  overflow: hidden;
+}
+#context .ctxvideo {
+  display: flex; align-items: center;
+  padding: 0 .4rem 1.1rem; margin-bottom: .4rem;
+  border-bottom: .1rem solid #3a3a3a;
+}
+#context .ctxvideo img {
+  width: 11rem; height: 6.2rem; border-radius: .45rem;
+  object-fit: cover; background: #303030; flex: 0 0 11rem;
+}
+#context .ctxvideo-text { flex: 1; min-width: 0; padding-left: 1rem; }
+#context .ctitle {
+  font-size: 1.18rem; line-height: 1.5rem; font-weight: 500; color: #f1f1f1;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+#context .csub { margin-top: .35rem; font-size: .98rem; color: #aaa; }
+#context .ctxhead {
+  padding: .6rem .5rem .8rem; font-size: .92rem;
+  text-transform: uppercase; letter-spacing: .08em; color: #9a9a9a;
+}
+#context .ctxlist { max-height: 25rem; overflow-y: auto; }
+#context .ctxlist::-webkit-scrollbar { width: 0; height: 0; }
+#context .ctxitem {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 3.5rem; padding: .75rem .9rem; margin-bottom: .25rem;
+  border-radius: .6rem; font-size: 1.05rem; color: #f1f1f1;
+}
+#context .ctxvalue { color: #aaa; font-size: 1.4rem; line-height: 1; }
+#context .ctxitem.focused {
+  background: #f1f1f1; color: #0f0f0f;
+  box-shadow: 0 0 0 .1875rem #f1f1f1;
+}
+#context .ctxitem.focused .ctxvalue { color: #606060; }
+
+/* ---------- toast ---------- */
+#toast {
+  position: absolute; left: var(--content-left); bottom: 3rem;
+  background: #f1f1f1; color: #0f0f0f;
+  padding: .7rem 1.1rem; border-radius: .5rem;
+  font-size: 1rem; font-weight: 500;
+  opacity: 0; transform: translateY(.6rem);
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 200; pointer-events: none;
+}
+#toast.on { opacity: 1; transform: translateY(0); }
+
+/* ---------- states ---------- */
+.state { padding: 7rem 0 0; color: #909090; }
+.state h2 { font-size: 1.75rem; color: #f1f1f1; margin: 0 0 .6rem 0; font-weight: 500; }
+.state p { font-size: 1.05rem; line-height: 1.6; margin: 0; }

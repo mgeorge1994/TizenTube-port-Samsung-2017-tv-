@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:tizen="http://tizen.org/ns/widgets"
+        id="https://youtube.local/app"
+        version="0.2.4"
+        viewmodes="maximized">
+
+  <name>YouTube</name>
+  <description>YouTube (TizenTube edition): a 10-foot ad-free client.</description>
+  <author href="http://localhost" email="">TizenTube</author>
+
+  <!-- Wide launcher tiles: black background, white wordmark, green play button. -->
+  <icon src="img/tile-1920x1080.png" width="1920" height="1080"/>
+  <icon src="icon.png" width="512" height="423"/>
+
+  <content src="index.html"/>
+  <feature name="http://tizen.org/feature/screen.size.all"/>
+
+  <tizen:application id="GmLaunch02.TyzenTube" package="GmLaunch02" required_version="3.0"/>
+  <tizen:profile name="tv-samsung"/>
+
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:privilege name="http://tizen.org/privilege/network.get"/>
+  <tizen:privilege name="http://tizen.org/privilege/display"/>
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+  <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+
+  <tizen:setting screen-orientation="landscape"
+                 context-menu="disable"
+                 background-support="disable"
+                 encryption="disable"
+                 install-location="auto"
+                 hwkey-event="enable"/>
+
+  <access origin="*" subdomains="true"/>
+  <tizen:allow-navigation href="*"/>
+</widget>

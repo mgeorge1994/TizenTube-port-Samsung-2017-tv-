@@ -1,0 +1,10 @@
+*.wgt
+author-signature.xml
+signature1.xml
+.sign/
+node_modules/
+__pycache__/
+*.log
+.DS_Store
+# local handoff notes (contain LAN IPs / agent instructions)
+CLAUDE_CODE_PROMPT.md
